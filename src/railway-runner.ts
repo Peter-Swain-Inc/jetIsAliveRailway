@@ -170,6 +170,7 @@ export async function runRailwayAgent(
         NANOCLAW_IPC_INPUT: path.join(ipcDir, 'input'),
         LOG_LEVEL: process.env.LOG_LEVEL || '',
         NODE_ENV: process.env.NODE_ENV || '',
+        RAILWAY_ENVIRONMENT: process.env.RAILWAY_ENVIRONMENT || '',
       },
     });
 

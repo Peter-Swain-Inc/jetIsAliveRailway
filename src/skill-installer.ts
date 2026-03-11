@@ -210,7 +210,8 @@ export async function installSkillsFromRepo(
   fs.mkdirSync(skillsDir, { recursive: true });
 
   try {
-    logger.info({ repo }, 'Installing skills via npx skills add');
+    const hasGhToken = !!(process.env.GITHUB_TOKEN || process.env.GH_TOKEN);
+    logger.info({ repo, hasGhToken }, 'Installing skills via npx skills add');
 
     // Build env: forward GITHUB_TOKEN so npx skills add can clone private repos
     const childEnv: Record<string, string> = {
@@ -282,7 +283,27 @@ export async function installSkillsFromRepo(
     return { installed, requiredInputs };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    logger.error({ repo, err }, 'Failed to install skills from repo');
+    const stderr =
+      err instanceof Error && 'stderr' in err
+        ? Buffer.isBuffer((err as { stderr?: unknown }).stderr)
+          ? (err as { stderr: Buffer }).stderr.toString('utf-8')
+          : String((err as { stderr?: unknown }).stderr || '')
+        : '';
+    const stdout =
+      err instanceof Error && 'stdout' in err
+        ? Buffer.isBuffer((err as { stdout?: unknown }).stdout)
+          ? (err as { stdout: Buffer }).stdout.toString('utf-8')
+          : String((err as { stdout?: unknown }).stdout || '')
+        : '';
+    logger.error(
+      {
+        repo,
+        errorMsg,
+        stderr: stderr.slice(0, 2000),
+        stdout: stdout.slice(0, 2000),
+      },
+      'Failed to install skills from repo',
+    );
     return { installed: [], requiredInputs: [], error: errorMsg };
   } finally {
     // Clean up temp directory
@@ -297,7 +318,10 @@ export async function installSkillsFromRepo(
 /**
  * Remove a skill by name. Deletes the skill directory and removes from lock file.
  */
-export function removeSkill(name: string): { removed: boolean; error?: string } {
+export function removeSkill(name: string): {
+  removed: boolean;
+  error?: string;
+} {
   const skillsDir = path.join(process.cwd(), 'container', 'skills');
   const skillDir = path.join(skillsDir, name);
 
@@ -327,7 +351,9 @@ export function removeSkill(name: string): { removed: boolean; error?: string } 
 /**
  * List all installed skills from the lock file and skills directory.
  */
-export function listSkills(): { skills: Array<{ name: string; source: string; sourceType: string }> } {
+export function listSkills(): {
+  skills: Array<{ name: string; source: string; sourceType: string }>;
+} {
   const lock = readLockFile();
   const skillsDir = path.join(process.cwd(), 'container', 'skills');
 
