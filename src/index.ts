@@ -484,6 +484,20 @@ function ensureContainerSystemRunning(): void {
 }
 
 async function main(): Promise<void> {
+  // On Railway, remove stale /data/.env if it exists.
+  // Secrets now come from Railway service config (process.env).
+  // The old .env may contain secrets written by the removed set_env_var tool.
+  if (IS_RAILWAY) {
+    const staleEnvPath = path.join(
+      process.env.RAILWAY_VOLUME_MOUNT_PATH || '/data',
+      '.env',
+    );
+    if (fs.existsSync(staleEnvPath)) {
+      fs.unlinkSync(staleEnvPath);
+      logger.info('Removed stale /data/.env — secrets now come from Railway service config');
+    }
+  }
+
   ensureContainerSystemRunning();
   initDatabase();
   logger.info('Database initialized');
