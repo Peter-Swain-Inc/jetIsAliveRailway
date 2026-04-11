@@ -11,6 +11,7 @@ import {
   ASSISTANT_NAME,
   CONTAINER_MAX_OUTPUT_SIZE,
   CONTAINER_TIMEOUT,
+  CREDENTIAL_PROXY_PORT,
   DATA_DIR,
   GROUPS_DIR,
   IDLE_TIMEOUT,
@@ -171,6 +172,8 @@ export async function runRailwayAgent(
         LOG_LEVEL: process.env.LOG_LEVEL || '',
         NODE_ENV: process.env.NODE_ENV || '',
         RAILWAY_ENVIRONMENT: process.env.RAILWAY_ENVIRONMENT || '',
+        ANTHROPIC_BASE_URL: 'http://127.0.0.1:' + CREDENTIAL_PROXY_PORT,
+        ANTHROPIC_API_KEY: 'proxy-injected',
       },
     });
 
@@ -181,11 +184,15 @@ export async function runRailwayAgent(
     let stdoutTruncated = false;
     let stderrTruncated = false;
 
-    // Pass secrets via stdin (never exposed as env vars)
-    input.secrets = readSecrets();
-    (input as unknown as Record<string, unknown>).secretKeyNames = Object.keys(
-      input.secrets,
-    );
+    // Pass non-Anthropic secrets via stdin (Anthropic auth handled by credential proxy)
+    const allSecrets = readSecrets();
+    const ANTHROPIC_KEYS = ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL'];
+    const filteredSecrets: Record<string, string> = {};
+    for (const [k, v] of Object.entries(allSecrets)) {
+      if (!ANTHROPIC_KEYS.includes(k)) filteredSecrets[k] = v;
+    }
+    input.secrets = filteredSecrets;
+    (input as unknown as Record<string, unknown>).secretKeyNames = Object.keys(input.secrets);
     child.stdin.write(JSON.stringify(input));
     child.stdin.end();
     delete input.secrets;

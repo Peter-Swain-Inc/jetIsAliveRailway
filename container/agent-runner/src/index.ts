@@ -689,12 +689,25 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  // Build minimal SDK environment — only system vars + explicitly forwarded secrets.
   // Credentials are injected by the host's credential proxy via ANTHROPIC_BASE_URL.
-  // No real secrets exist in the container environment.
+  const secretKeys = (containerInput as unknown as Record<string, unknown>).secretKeyNames as string[] || [];
   const sdkEnv: Record<string, string | undefined> = {
-    ...process.env,
+    PATH: process.env.PATH,
+    HOME: process.env.HOME,
+    TZ: process.env.TZ,
+    NODE_PATH: process.env.NODE_PATH,
+    NODE_ENV: process.env.NODE_ENV,
+    NODE_EXTRA_CA_CERTS: process.env.NODE_EXTRA_CA_CERTS,
+    ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    CLAUDE_CODE_OAUTH_TOKEN: process.env.CLAUDE_CODE_OAUTH_TOKEN,
     CLAUDE_CODE_AUTO_COMPACT_WINDOW: '165000',
   };
+  // Add explicitly forwarded secrets (MCP env vars, channel tokens, etc.)
+  for (const key of secretKeys) {
+    if (process.env[key]) sdkEnv[key] = process.env[key];
+  }
 
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const mcpServerPath = path.join(__dirname, 'ipc-mcp-stdio.js');

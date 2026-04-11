@@ -648,15 +648,12 @@ async function main(): Promise<void> {
   // Sync persistent MCP servers (rebuild .mcp.json from lock file)
   await syncMcpOnStartup();
 
-  // Start credential proxy (containers route API calls through this)
-  // On Railway, secrets are passed via stdin instead, so the proxy is a no-op guard.
+  // Start credential proxy (containers/child processes route API calls through this)
   let proxyServer: { close: () => void } | undefined;
-  if (!IS_RAILWAY) {
-    proxyServer = await startCredentialProxy(
-      CREDENTIAL_PROXY_PORT,
-      PROXY_BIND_HOST,
-    );
-  }
+  proxyServer = await startCredentialProxy(
+    CREDENTIAL_PROXY_PORT,
+    PROXY_BIND_HOST,
+  );
 
   // Graceful shutdown handlers
   const shutdown = async (signal: string) => {
